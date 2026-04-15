@@ -1,0 +1,179 @@
+/*
+ * 270AdaptiveBlock.c
+ *
+ * Author : pmshe
+ */ 
+
+#include <avr/io.h>
+#include <stdio.h>
+#define F_CPU 16000000
+#include <util/delay.h>
+#define SET_BIT(x,y)	x=x | (1<<y)	//setbits
+#define CLR_BIT(x,y)	x=x & ~(1<<y)
+
+
+int main(void)
+{
+	//init_UART();
+    
+	DDRA = 0xFF; 
+	PORTC = 0x00;
+	DDRC = 0x00;
+	PORTA = 0xFF;
+	
+	uint16_t Vehicle_in;
+	uint16_t brake_enable;
+	
+    while (1) 
+    {
+		PORTC |= (1 << PORTC7);    // brake enable
+		while((PINC & 0x01) == 0)
+		{
+			PORTC |= (1 << PORTC7);     //break enable
+			
+			PORTA = 0xFF;
+			_delay_us(10);
+			PORTA = ~PORTA;
+			
+			//while((PINC & 0x02) == 0)		// wait for button
+			//{
+			//}
+			
+			TCNT3 = 0;
+			TCCR3B = 2;				// set clock
+			
+			
+			//while((PINC & 0x02) != 0)			// wait for button let go
+			//{
+			//}
+			
+			TCCR3B = 0;
+			uint16_t time = TCNT3 *.5;			//convert dist and time
+			uint16_t dist = TCNT3/148*2.54;
+			//printf("time  is %u\n", time);
+			//printf("dist  is %u\n", dist);
+			if(dist < 36)
+			{
+				// set to cruise
+
+				PORTC |= (1 << PORTC1);
+
+				OCR1A = (F_CPU / 1000000) * 1500 - 1;
+				TCCR1A = 0;
+				TCCR1B = (1 << WGM12) | (1 << CS11); 
+				TIMSK1 |= (1 << OCIE1A);
+			}
+			if(dist > 36)
+			{
+				// set to fast
+				PORTC |= (1 << PORTC1);
+				
+				OCR1A = (F_CPU / 1000000) * 1700 - 1;
+				TCCR1A = 0;
+				TCCR1B = (1 << WGM12) | (1 << CS11); 
+				TIMSK1 |= (1 << OCIE1A);
+			}
+			_delay_ms(500);
+		}
+    }
+}
+
+
+
+
+/*
+ * 270AdaptiveBlock.c
+ *
+ * Author : pmshe
+ */ 
+
+#include <avr/io.h>
+#include <stdio.h>
+#define F_CPU 16000000
+#include <util/delay.h>
+#define SET_BIT(x,y)	x=x | (1<<y)	//setbits
+#define CLR_BIT(x,y)	x=x & ~(1<<y)
+#include "serial.c"
+
+
+
+int main(void)
+{
+	init_UART();
+    
+	DDRA = 0xFF; 
+	PORTC = 0xFF;
+	DDRC = 0x00;
+	PORTA = 0xFF;
+	PORTL = 0x00;
+	DDRL = 0x00;
+	
+	TCCR1B = 0b00011000;
+	TCCR1A = 0b00000010;
+	TCCR1A = TCCR1A | 0b10100000;
+	TCCR1B = TCCR1B | 0x02;
+	ICR1 = 20000;
+	
+	printf("part 1/n");
+    while (1) 
+    {
+		printf("wait for enable\n");
+		while((PINL & 0x01) != 0)
+		{
+			//printf("enable on \n");
+			PORTC |= (1 << PINC7);    // brake enable
+			
+			PORTA = 0xFF;
+			_delay_us(10);
+			PORTA = ~PORTA;
+			
+			while((PINC & 0x01) == 0)		// wait for button
+			{
+			}
+			
+			TCNT3 = 0;
+			TCCR3B = 2;				// set clock
+			
+			
+			while((PINC & 0x01) != 0)		
+			{
+			}
+			
+			TCCR3B = 0;
+			//uint16_t time = TCNT3 *.5;			//convert dist and time
+			uint16_t dist = (TCNT3)/148;
+			//printf("time  is %u\n", time);
+			printf("dist  is %u\n", dist);
+			
+			
+			if(dist < 36  && dist > 24)
+			{
+				// set to cruise
+				OCR1A = 1500*2;
+				_delay_ms(10);
+			}
+			
+			if(dist > 36)
+			{
+				// set to fast
+				OCR1A = 1700*2;
+				_delay_ms(10);
+				
+			}
+			
+			if(dist < 24)
+			{
+				// set to fast
+				//PORTC |= (1 << PINC7);     //break enable
+				_delay_ms(10);
+			}
+			_delay_ms(100);
+		}
+    }
+}
+
+
+
+
+
+
